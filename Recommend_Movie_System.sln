@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29215.179
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Recommend_Movie_System", "Recommend_Movie_System.csproj", "{FCC058CA-0449-4B3B-876B-9B593D0132A2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FCC058CA-0449-4B3B-876B-9B593D0132A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FCC058CA-0449-4B3B-876B-9B593D0132A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FCC058CA-0449-4B3B-876B-9B593D0132A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FCC058CA-0449-4B3B-876B-9B593D0132A2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {68C27441-7F53-4C25-B155-FE008C5FFB8E}
+	EndGlobalSection
+EndGlobal
