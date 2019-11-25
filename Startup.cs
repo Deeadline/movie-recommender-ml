@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using FluentValidation.AspNetCore;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+
+using Newtonsoft.Json;
+
+using Recommend_Movie_System.Configuration;
+using Recommend_Movie_System.Middleware;
+using Recommend_Movie_System.Repository;
 
 namespace Recommend_Movie_System
 {
@@ -20,16 +21,30 @@ namespace Recommend_Movie_System
             Configuration = configuration;
         }
 
-        public IConfiguration Configuration { get; }
+        private IConfiguration Configuration { get; }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
+            services.ConfigureDatabase(Configuration);
+
+            services.AddMvc()
+                .SetCompatibilityVersion(CompatibilityVersion.Version_2_1)
+                .AddJsonOptions(options => { options.SerializerSettings.Formatting = Formatting.Indented; })
+                .AddFluentValidation(fv =>
+                {
+                    fv.RegisterValidatorsFromAssemblyContaining<Startup>();
+                    fv.RunDefaultMvcValidationAfterFluentValidationExecutes = false;
+                });
+
+            services.AddTransient<ApplicationSeed>();
+            services.ConfigureFilters();
+            services.ConfigureAuthentication(Configuration);
+            services.ConfigureCors();
+            services.ConfigureSwagger();
+            services.ConfigureServices();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ApplicationSeed applicationSeed)
         {
             if (env.IsDevelopment())
             {
@@ -40,8 +55,16 @@ namespace Recommend_Movie_System
                 app.UseHsts();
             }
 
+
+            app.ExceptionHandler();
+            app.UseAuthentication();
             app.UseHttpsRedirection();
+            app.UseCors("CorsPolicy");
             app.UseMvc();
+            app.EnableSwagger();
+            app.UseMiddleware<JwtTokenExpirationMiddleware>();
+
+            ApplicationSeed.SeedAsync(app.ApplicationServices).Wait();
         }
     }
 }
