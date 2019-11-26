@@ -11,6 +11,5 @@ namespace Recommend_Movie_System.Models.Response
         public int numberOfVotes { get; set; }
         public MovieFeedbackResponse feedback { get; set; }
         public IList<int> genresIds { get; set; }
-        public IList<int> commentsIds { get; set; }
     }
 }

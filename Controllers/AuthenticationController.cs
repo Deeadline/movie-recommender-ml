@@ -30,7 +30,7 @@ namespace Recommend_Movie_System.Controllers
         /// <remarks>
         /// Sample request:
         /// 
-        ///     POST /login
+        ///     POST /api/auth/login
         ///     {
         ///         "email": "test@example.com",
         ///         "password": "test"
@@ -55,7 +55,7 @@ namespace Recommend_Movie_System.Controllers
         /// <remarks>
         /// Sample request:
         ///
-        ///     POST /register
+        ///     POST /api/auth/register
         ///     {
         ///         "firstName": "test",
         ///         "lastName": "test",

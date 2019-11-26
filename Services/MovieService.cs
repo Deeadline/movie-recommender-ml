@@ -2,10 +2,10 @@
 using Recommend_Movie_System.Models.Response;
 using Recommend_Movie_System.Repository;
 using Recommend_Movie_System.Services.Interface;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Recommend_Movie_System.Models.Entity;
 
 namespace Recommend_Movie_System.Services
 {
@@ -28,6 +28,7 @@ namespace Recommend_Movie_System.Services
                         on movie.id equals feedback.movieId
                     join genre in _context.movieGenres
                         on movie.id equals genre.movieId
+                    where movie.archived.Equals(false)
                     select new
                     {
                         movieId = movie.id,
@@ -53,7 +54,7 @@ namespace Recommend_Movie_System.Services
                         on movie.id equals feedback.movieId
                     join genre in _context.movieGenres
                         on movie.id equals genre.movieId
-                    where movie.id == movieId
+                    where movie.id.Equals(movieId)
                     select new
                     {
                         movieId = movie.id,
@@ -62,7 +63,7 @@ namespace Recommend_Movie_System.Services
                         feedback.rate,
                         genreId = genre.id,
                     }).GroupBy(y => y.movieId)
-                .Select(f => new MovieDetailResponse()
+                .Select(f => new MovieDetailResponse
                 {
                     id = f.Key,
                     title = f.First().title,
@@ -76,17 +77,54 @@ namespace Recommend_Movie_System.Services
 
         public bool create(MovieRequest request)
         {
-            throw new NotImplementedException();
+            if (_context.movies.FirstOrDefault(m => m.title.Equals(request.title)) != null)
+            {
+                throw new Exception($"Movie with provided title: {request.title} is already taken");
+            }
+
+            var newModel = new Movie
+            {
+                title = request.title,
+                releaseYear = request.releaseYear,
+                genres = _context.movieGenres.Where(g => request.genresIds.Contains(g.id)).ToList()
+            };
+
+            _context.movies.Add(newModel);
+            return _context.SaveChanges() > 0;
         }
 
         public bool update(int movieId, MovieRequest request)
         {
-            throw new NotImplementedException();
+            var originalModel = _context.movies.FirstOrDefault(m => m.id.Equals(movieId));
+            var parsedModel = new Movie
+            {
+                title = request.title,
+                releaseYear = request.releaseYear,
+                genres = _context.movieGenres.Where(g => request.genresIds.Contains(g.id)).ToList()
+            };
+
+            if (originalModel is null)
+            {
+                throw new Exception("Model not found");
+            }
+
+            parsedModel.id = originalModel.id;
+
+            _context.Entry(originalModel).CurrentValues.SetValues(parsedModel);
+            return _context.SaveChanges() > 0;
         }
 
         public bool delete(int movieId)
         {
-            throw new NotImplementedException();
+            var modelToArchive = _context.movies.FirstOrDefault(m => m.id.Equals(movieId));
+            if (modelToArchive is null)
+            {
+                throw new Exception("Model not found");
+            }
+
+            modelToArchive.archived = true;
+            _context.movies.Update(modelToArchive);
+            return _context.SaveChanges() > 0;
         }
     }
 }

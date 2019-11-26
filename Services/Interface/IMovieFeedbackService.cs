@@ -7,6 +7,6 @@ namespace Recommend_Movie_System.Services.Interface
     {
         MovieFeedbackResponse getFeedback(int movieId, int userId);
         bool create(int movieId, MovieFeedbackRequest request);
-        bool update(int movieId, int feedbackId, MovieFeedbackRequest request);
+        bool update(int feedbackId, MovieFeedbackRequest request);
     }
 }
