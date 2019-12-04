@@ -8,7 +8,8 @@ namespace Recommend_Movie_System.Services.Interface
     public interface IMovieService
     {
         IList<MovieResponse> getMovies();
-        MovieDetailResponse getMovie(int movieId, int userId);
+        MovieDetailResponse getMovieWithDetails(int movieId, int userId);
+        MovieResponse getMovie(int movieId);
         bool create(MovieRequest request);
         bool update(int movieId, MovieRequest request);
         bool delete(int movieId);

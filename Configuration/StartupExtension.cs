@@ -50,11 +50,12 @@ namespace Recommend_Movie_System.Configuration
             services.AddScoped<IAuthenticationService, AuthenticationService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IMovieService, MovieService>();
+            services.AddScoped<IGenreService, GenreService>();
             services.AddScoped<IMovieCommentService, MovieCommentService>();
             services.AddScoped<IMovieFeedbackService, MovieFeedbackService>();
             services.AddScoped<IMovieRecommendationService, MovieRecommendationService>();
-            services.AddHttpContextAccessor();
             services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddHttpContextAccessor();
         }
 
         public static void ConfigureSwagger(this IServiceCollection services)
@@ -77,10 +78,9 @@ namespace Recommend_Movie_System.Configuration
 
         public static void ConfigureDatabase(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<ApplicationContext>(options =>
-            {
-                options.UseNpgsql(configuration.GetConnectionString("PostgreSQL"));
-            });
+            services.AddDbContext<ApplicationContext>(
+                options => { options.UseNpgsql(configuration.GetConnectionString("PostgreSQL")); },
+                ServiceLifetime.Transient);
         }
 
         public static void ConfigureAuthentication(this IServiceCollection services, IConfiguration configuration)

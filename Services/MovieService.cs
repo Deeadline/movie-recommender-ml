@@ -26,8 +26,6 @@ namespace Recommend_Movie_System.Services
             return (from movie in _context.movies
                     join feedback in _context.movieFeedbacks
                         on movie.id equals feedback.movieId
-                    join genre in _context.movieGenres
-                        on movie.id equals genre.movieId
                     where movie.archived.Equals(false)
                     select new
                     {
@@ -35,25 +33,23 @@ namespace Recommend_Movie_System.Services
                         movie.title,
                         movie.releaseYear,
                         feedback.rate,
-                        genreId = genre.id
-                    }).GroupBy(y => y.movieId)
+                    }).GroupBy(y => y.movieId).Take(500).ToList()
                 .Select(f => new MovieResponse
                 {
                     id = f.Key,
                     title = f.FirstOrDefault().title,
                     releaseYear = f.FirstOrDefault().releaseYear,
-                    genresIds = f.Select(y => y.genreId).Distinct().ToList(),
+                    genresIds = _context.movieGenres.Where(y => y.movieId.Equals(f.Key)).Select(yy => yy.genreId)
+                        .ToList(),
                     averageRate = f.Average(l => l.rate)
                 }).ToList();
         }
 
-        public MovieDetailResponse getMovie(int movieId, int userId)
+        public MovieResponse getMovie(int movieId)
         {
             return (from movie in _context.movies
                     join feedback in _context.movieFeedbacks
                         on movie.id equals feedback.movieId
-                    join genre in _context.movieGenres
-                        on movie.id equals genre.movieId
                     where movie.id.Equals(movieId)
                     select new
                     {
@@ -61,15 +57,39 @@ namespace Recommend_Movie_System.Services
                         movie.title,
                         movie.releaseYear,
                         feedback.rate,
-                        genreId = genre.id,
+                    }).GroupBy(y => y.movieId)
+                .Select(f => new MovieResponse
+                {
+                    id = f.Key,
+                    title = f.FirstOrDefault().title,
+                    releaseYear = f.FirstOrDefault().releaseYear,
+                    genresIds = _context.movieGenres.Where(y => y.movieId.Equals(f.Key)).Select(yy => yy.genreId)
+                        .ToList(),
+                    averageRate = f.Average(l => l.rate)
+                }).FirstOrDefault();
+        }
+
+        public MovieDetailResponse getMovieWithDetails(int movieId, int userId)
+        {
+            return (from movie in _context.movies
+                    join feedback in _context.movieFeedbacks
+                        on movie.id equals feedback.movieId
+                    where movie.id.Equals(movieId)
+                    select new
+                    {
+                        movieId = movie.id,
+                        movie.title,
+                        movie.releaseYear,
+                        feedback.rate,
                     }).GroupBy(y => y.movieId)
                 .Select(f => new MovieDetailResponse
                 {
                     id = f.Key,
                     title = f.First().title,
                     releaseYear = f.First().releaseYear,
-                    genresIds = f.Select(y => y.genreId).Distinct().ToList(),
                     averageRate = f.Average(l => l.rate),
+                    genresIds = _context.movieGenres.Where(y => y.movieId.Equals(f.Key)).Select(yy => yy.genreId)
+                        .ToList(),
                     numberOfVotes = f.Count(),
                     feedback = _feedbackService.getFeedback(movieId, userId)
                 }).FirstOrDefault();
@@ -86,11 +106,21 @@ namespace Recommend_Movie_System.Services
             {
                 title = request.title,
                 releaseYear = request.releaseYear,
-                genres = _context.movieGenres.Where(g => request.genresIds.Contains(g.id)).ToList()
             };
+            foreach (var genre in _context.genres.Where(g => request.genresIds.Contains(g.id)))
+            {
+                var movieGenre = new MovieGenre
+                {
+                    genre = genre,
+                    movie = newModel
+                };
+                newModel.movieGenres.Add(movieGenre);
+            }
 
             _context.movies.Add(newModel);
-            return _context.SaveChanges() > 0;
+            var result = _context.SaveChanges() > 0;
+            request.id = newModel.id;
+            return result;
         }
 
         public bool update(int movieId, MovieRequest request)
@@ -100,12 +130,21 @@ namespace Recommend_Movie_System.Services
             {
                 title = request.title,
                 releaseYear = request.releaseYear,
-                genres = _context.movieGenres.Where(g => request.genresIds.Contains(g.id)).ToList()
             };
 
             if (originalModel is null)
             {
                 throw new Exception("Model not found");
+            }
+
+            foreach (var genre in _context.genres.Where(g => request.genresIds.Contains(g.id)))
+            {
+                var movieGenre = new MovieGenre
+                {
+                    genre = genre,
+                    movie = parsedModel
+                };
+                parsedModel.movieGenres.Add(movieGenre);
             }
 
             parsedModel.id = originalModel.id;

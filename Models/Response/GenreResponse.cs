@@ -1,6 +1,6 @@
 ﻿namespace Recommend_Movie_System.Models.Response
 {
-    public class MovieGenreResponse
+    public class GenreResponse
     {
         public int id { get; set; }
         public string name { get; set; }

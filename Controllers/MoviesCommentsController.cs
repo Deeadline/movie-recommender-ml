@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-
 using Recommend_Movie_System.Models;
 using Recommend_Movie_System.Models.Request;
 using Recommend_Movie_System.Models.Response;
 using Recommend_Movie_System.Services.Interface;
-
 using System.Collections.Generic;
 using System.Net.Mime;
 
@@ -14,7 +12,7 @@ namespace Recommend_Movie_System.Controllers
     [Route("api/movies/{movieId}/comments")]
     [ApiController]
     [Produces(MediaTypeNames.Application.Json)]
-//    [Authorize]
+    [Authorize]
     public class MoviesCommentsController : ControllerBase
     {
         private readonly IMovieCommentService _movieCommentService;
@@ -28,14 +26,17 @@ namespace Recommend_Movie_System.Controllers
         /// Get comments for movie
         /// </summary>
         /// <param name="movieId">Movie id</param>
+        /// <response code="200">Returns movie comments collection</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpGet]
         [ProducesResponseType(typeof(List<MovieCommentResponse>), 200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public IList<MovieCommentResponse> GetMovieComments([FromRoute] int movieId)
+        public IActionResult GetMovieComments([FromRoute] int movieId)
         {
-            return _movieCommentService.getComments(movieId);
+            return Ok(_movieCommentService.getComments(movieId));
         }
 
         /// <summary>
@@ -54,15 +55,20 @@ namespace Recommend_Movie_System.Controllers
         /// </remarks>
         /// <param name="movieId">Movie id</param>
         /// <param name="request">Request body</param>
+        /// <response code="201">Returns the newly created item</response>
+        /// <response code="400">If the item is not valid or already exist in database.</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpPost]
-        [ProducesResponseType(typeof(bool), 201)]
+        [ProducesResponseType(typeof(List<MovieCommentResponse>), 201)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public bool PostMovieComments([FromRoute] int movieId, [FromBody] MovieCommentRequest request)
+        public IActionResult PostMovieComments([FromRoute] int movieId, [FromBody] MovieCommentRequest request)
         {
-            Response.StatusCode = 201;
-            return _movieCommentService.create(movieId, request);
+            _movieCommentService.create(movieId, request);
+            return CreatedAtRoute("GetMovieComments", new {movieId}, request);
         }
 
         /// <summary>
@@ -82,14 +88,20 @@ namespace Recommend_Movie_System.Controllers
         /// <param name="movieId">Movie id</param>
         /// <param name="commentId">Comment id</param>
         /// <param name="request">Request body</param>
+        /// <response code="200">If successfully updated comment</response>
+        /// <response code="400">If model not found</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpPut("{commentId}")]
-        [ProducesResponseType(typeof(bool), 200)]
+        [ProducesResponseType(200)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public bool PutMovieComment([FromRoute] int movieId, int commentId, [FromBody] MovieCommentRequest request)
+        public IActionResult PutMovieComment([FromRoute] int movieId, int commentId,
+            [FromBody] MovieCommentRequest request)
         {
-            return _movieCommentService.update(commentId, request);
+            return Ok(_movieCommentService.update(commentId, request));
         }
 
         /// <summary>
@@ -97,16 +109,21 @@ namespace Recommend_Movie_System.Controllers
         /// </summary>
         /// <param name="movieId">Movie id</param>
         /// <param name="commentId">Comment id</param>
+        /// <response code="204">If successfully archived comment</response>
+        /// <response code="400">If model not found</response>
+        /// <response code="401">If user is unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
-        [Authorize(Roles = Role.Admin)]
         [HttpDelete("{commentId}")]
-        [ProducesResponseType(typeof(bool), 204)]
+        [Authorize(Roles = Role.Admin)]
+        [ProducesResponseType(204)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public bool DeleteComment([FromRoute] int movieId, int commentId)
+        public IActionResult DeleteComment([FromRoute] int movieId, int commentId)
         {
-            Response.StatusCode = 204;
-            return _movieCommentService.delete(commentId);
+            _movieCommentService.delete(commentId);
+            return NoContent();
         }
     }
 }

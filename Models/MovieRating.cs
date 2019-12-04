@@ -4,10 +4,9 @@ namespace Recommend_Movie_System.Models
 {
     public class MovieRating
     {
-        [LoadColumn(0)] public float userId { get; set; }
+        public int userId { get; set; }
 
-        [LoadColumn(1)] public float movieId { get; set; }
-
-        [LoadColumn(2)] public float label { get; set; }
+        public int movieId { get; set; }
+        [ColumnName("Label")] public float label { get; set; }
     }
 }

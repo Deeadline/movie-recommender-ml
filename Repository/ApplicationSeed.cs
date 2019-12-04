@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using CsvHelper;
 using Recommend_Movie_System.Helpers;
 using Recommend_Movie_System.Models;
 using Recommend_Movie_System.Models.Entity;
@@ -15,13 +17,49 @@ namespace Recommend_Movie_System.Repository
         {
             using (var serviceScope = serviceProvider.GetRequiredService<IServiceScopeFactory>().CreateScope())
             {
-                var db = serviceScope.ServiceProvider.GetService<ApplicationContext>();
+                ApplicationContext db = serviceScope.ServiceProvider.GetService<ApplicationContext>();
                 if (await db.Database.EnsureCreatedAsync())
                 {
-                    if (db.users.FirstOrDefault(u => u.role.Equals("Admin")) is null)
+                    (List<PreparedMovie> preparedMovies, List<string> genres) = LoadMovieData();
+
+                    if (!db.genres.Any())
                     {
-                        Encryption.CreatePasswordHash("admin", out byte[] passwordHash, out byte[] passwordSalt);
-                        await db.users.AddAsync(new User()
+                        var movieGenres = genres.Select(genre => new Genre {name = genre}).ToList();
+                        db.genres.AddRange(movieGenres);
+                        db.SaveChanges();
+                    }
+
+                    if (!db.movies.Any())
+                    {
+                        foreach (var preparedMovie in preparedMovies)
+                        {
+                            var movie = new Movie
+                            {
+                                releaseYear = preparedMovie.releaseYear,
+                                title = preparedMovie.movieTitle
+                            };
+                            foreach (var genre in preparedMovie.genreNames)
+                            {
+                                var dbGenre = db.genres.FirstOrDefault(y => y.name == genre);
+                                var movieGenre = new MovieGenre
+                                {
+                                    genre = dbGenre,
+                                    movie = movie
+                                };
+                                movie.movieGenres.Add(movieGenre);
+                                db.movies.Add(movie);
+                            }
+                        }
+
+                        await db.SaveChangesAsync();
+                    }
+
+                    if (!db.users.Any())
+                    {
+                        List<User> users = new List<User>(10000);
+                        byte[] passwordHash, passwordSalt;
+                        Encryption.CreatePasswordHash("admin", out passwordHash, out passwordSalt);
+                        users.Add(new User
                         {
                             email = "admin@example.com",
                             firstName = "admin",
@@ -30,76 +68,121 @@ namespace Recommend_Movie_System.Repository
                             passwordHash = passwordHash,
                             role = Role.Admin
                         });
-                        db.SaveChanges();
-                    }
+                        for (int i = 2; i <= 610; i++)
+                        {
+                            Encryption.CreatePasswordHash($"test{i}", out passwordHash, out passwordSalt);
+                            users.Add(new User
+                            {
+                                email = $"t{i}@example.com",
+                                firstName = $"t{i}",
+                                lastName = $"tt{i}",
+                                passwordSalt = passwordSalt,
+                                passwordHash = passwordHash,
+                                role = Role.User
+                            });
+                        }
 
-                    if (!db.movieGenres.Any())
-                    {
-                        var adventure = new MovieGenre() {name = "Adventure"};
-                        var comedy = new MovieGenre() {name = "Comedy"};
-                        var fantasy = new MovieGenre() {name = "Fantasy"};
-                        var romance = new MovieGenre() {name = "Romance"};
-                        var animation = new MovieGenre() {name = "Animation"};
-                        var thriller = new MovieGenre() {name = "Thriller"};
-                        var drama = new MovieGenre() {name = "Drama"};
-                        var horror = new MovieGenre() {name = "Horror"};
-                        db.movieGenres.AddRange(adventure, comedy, fantasy, romance, animation, thriller, drama,
-                            horror);
-                        db.SaveChanges();
-                    }
-
-                    if (!db.movies.Any())
-                    {
-                        var toyStory = new Movie
-                        {
-                            title = "Toy Story", releaseYear = 1995,
-                            genres = db.movieGenres.Where(y => y.name == "Animation" || y.name == "Adventure").ToList()
-                        };
-                        var jumanji = new Movie()
-                        {
-                            title = "Jumanji", releaseYear = 1995,
-                            genres = db.movieGenres.Where(y => y.name == "Fantasy" || y.name == "Adventure").ToList()
-                        };
-                        var sabrina = new Movie()
-                        {
-                            title = "Sabrina", releaseYear = 1995,
-                            genres = db.movieGenres.Where(y => y.name == "Comedy" || y.name == "Romance").ToList()
-                        };
-                        db.movies.AddRange(toyStory, jumanji, sabrina);
+                        db.users.AddRange(users);
                         db.SaveChanges();
                     }
 
                     if (!db.movieFeedbacks.Any())
                     {
-                        var feedbacks = new List<MovieFeedback>();
                         Random rnd = new Random();
-                        for (int i = 0; i < 10; i++)
+                        string path = "E:\\ml-latest-small\\ratings.csv";
+                        int moviesSize = db.movies.Count();
+                        using (var streamReader = File.OpenText(path))
                         {
-                            feedbacks.Add(new MovieFeedback()
+                            CsvReader reader = new CsvReader(streamReader);
+                            foreach (var r in reader.GetRecords<Rate>())
                             {
-                                movieId = db.movies.Single(y => y.title == "Toy Story").id,
-                                rate = rnd.Next(1, 10),
-                                userId = db.users.Single(y => y.role == Role.Admin).id
-                            });
-                            feedbacks.Add(new MovieFeedback()
-                            {
-                                movieId = db.movies.Single(y => y.title == "Jumanji").id,
-                                rate = rnd.Next(1, 10),
-                                userId = db.users.Single(y => y.role == Role.Admin).id
-                            });
-                            feedbacks.Add(new MovieFeedback()
-                            {
-                                movieId = db.movies.Single(y => y.title == "Sabrina").id,
-                                rate = rnd.Next(1, 10),
-                                userId = db.users.Single(y => y.role == Role.Admin).id
-                            });
+                                await db.movieFeedbacks.AddAsync(new MovieFeedback()
+                                {
+                                    movieId = rnd.Next(1, moviesSize),
+                                    userId = r.userId,
+                                    rate = rnd.Next(1, 10)
+                                });
+                            }
                         }
 
-                        db.movieFeedbacks.AddRange(feedbacks);
-                        db.SaveChanges();
+                        await db.SaveChangesAsync();
                     }
                 }
             }
         }
+
+        private static (List<PreparedMovie>, List<string>) LoadMovieData()
+        {
+            string path = "E:\\ml-latest-small\\movies.csv";
+            List<string> genres = new List<string>(10000);
+            List<PreparedMovie> prepared = new List<PreparedMovie>(10000);
+            try
+            {
+                using (Stream fileReader = File.OpenRead(path))
+                using (StreamReader reader = new StreamReader(fileReader))
+                {
+                    bool header = true;
+                    string line = string.Empty;
+                    int index = 0;
+                    while (!reader.EndOfStream)
+                    {
+                        if (header)
+                        {
+                            line = reader.ReadLine();
+                            header = false;
+                        }
+
+                        line = reader.ReadLine();
+                        string[] fields = line.Split(',');
+                        int lastindexOf = fields[0].LastIndexOf(' ');
+                        string[] movieFields =
+                        {
+                            fields[0].Substring(0, lastindexOf),
+                            fields[0].Substring(lastindexOf + 1)
+                        };
+                        string[] genreFields = fields[1].Split('|');
+
+                        string movieTitle = movieFields[0];
+                        int releaseYear = int.Parse(movieFields[1].Trim('(', ')'));
+                        prepared.Add(new PreparedMovie
+                        {
+                            releaseYear = releaseYear,
+                            genreNames = genreFields.ToList(),
+                            movieTitle = movieTitle
+                        });
+                        genres.AddRange(genreFields);
+                        genres = genres.Distinct().ToList();
+
+                        index++;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Console.WriteLine(prepared.Count);
+                throw;
+            }
+
+            return (prepared, genres);
+        }
+    }
+
+    class PreparedMovie
+    {
+        public string movieTitle { get; set; }
+        public int releaseYear { get; set; }
+        public List<string> genreNames { get; set; }
+
+        public PreparedMovie()
+        {
+            genreNames = new List<string>();
+        }
+    }
+
+    class Rate
+    {
+        public int userId { get; set; }
+        public int movieId { get; set; }
     }
 }

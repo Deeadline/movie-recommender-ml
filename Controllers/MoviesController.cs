@@ -7,6 +7,7 @@ using Recommend_Movie_System.Models.Response;
 using Recommend_Movie_System.Services.Interface;
 using System.Collections.Generic;
 using System.Net.Mime;
+using System.Threading.Tasks;
 
 namespace Recommend_Movie_System.Controllers
 {
@@ -17,14 +18,17 @@ namespace Recommend_Movie_System.Controllers
     public class MoviesController : ControllerBase
     {
         private readonly IMovieService _movieService;
+        private readonly IGenreService _genreService;
         private readonly IMovieRecommendationService _movieRecommendationService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public MoviesController(IMovieService movieService, IHttpContextAccessor httpContextAccessor,
-            IMovieRecommendationService movieRecommendationService
+            IMovieRecommendationService movieRecommendationService,
+            IGenreService genreService
         )
         {
             _movieService = movieService;
+            _genreService = genreService;
             _httpContextAccessor = httpContextAccessor;
             _movieRecommendationService = movieRecommendationService;
         }
@@ -32,41 +36,72 @@ namespace Recommend_Movie_System.Controllers
         /// <summary>
         /// Get recommendation for current user using matrix factorization algorithm
         /// </summary>
+        /// <response code="200">Returns recommendation for user</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpGet("recommendation")]
-        [ProducesResponseType(typeof(MovieRecommendationResponse), 200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(typeof(List<MovieResponse>), 200)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public MovieRecommendationResponse GetMoviesRecommendation()
+        public async Task<IActionResult> GetMoviesRecommendation()
         {
-            return _movieRecommendationService.getRecommendation(1);
+            var userId = int.Parse(_httpContextAccessor.HttpContext.User.Identity.Name);
+            Task<IList<MovieResponse>> recommendation = _movieRecommendationService.getRecommendation(userId);
+            await Task.WhenAll(recommendation);
+            IList<MovieResponse> data = recommendation.Status == TaskStatus.RanToCompletion
+                ? recommendation.Result
+                : null;
+            return Ok(data);
         }
 
         /// <summary>
         /// Get all movies
         /// </summary>
+        /// <response code="200">Returns movies collection</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpGet]
         [ProducesResponseType(typeof(List<MovieResponse>), 200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public IList<MovieResponse> GetMovies()
+        public IActionResult GetMovies()
         {
-            return _movieService.getMovies();
+            return Ok(_movieService.getMovies());
         }
 
         /// <summary>
         /// Get movie with details
         /// </summary>
         /// <param name="movieId">Movie id</param>
+        /// <response code="200">Returns movie with details</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
         /// <returns></returns>
         [HttpGet("{movieId}")]
         [ProducesResponseType(typeof(MovieResponse), 200)]
-        [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public MovieDetailResponse GetMovieById(int movieId)
+        public IActionResult GetMovieById(int movieId)
         {
-            return _movieService.getMovie(movieId, 1);
+            return Ok(_movieService.getMovieWithDetails(movieId, 1));
+        }
+
+        /// <summary>
+        /// Get genres
+        /// </summary>
+        /// <response code="200">Returns genres</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
+        /// <returns></returns>
+        [HttpGet("genres")]
+        [ProducesResponseType(typeof(List<GenreResponse>), 200)]
+        [ProducesResponseType(401)]
+        [ProducesResponseType(500)]
+        public IActionResult GetGenres()
+        {
+            return Ok(_genreService.getAll());
         }
 
         /// <summary>
@@ -84,15 +119,21 @@ namespace Recommend_Movie_System.Controllers
         /// 
         /// </remarks>
         /// <param name="request">Request body</param>
-        [Authorize(Roles = Role.Admin)]
+        /// <response code="201">Returns the newly created item</response>
+        /// <response code="400">If model already exist in database or is invalid</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
+        /// <returns></returns>
         [HttpPost]
-        [ProducesResponseType(201)]
+        [Authorize(Roles = Role.Admin)]
+        [ProducesResponseType(typeof(MovieResponse), 201)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public bool PostMovie([FromBody] MovieRequest request)
+        public IActionResult PostMovie([FromBody] MovieRequest request)
         {
-            Response.StatusCode = 201;
-            return _movieService.create(request);
+            _movieService.create(request);
+            return CreatedAtRoute("GetMovieById", new {movieId = request.id}, request);
         }
 
         /// <summary>
@@ -111,27 +152,40 @@ namespace Recommend_Movie_System.Controllers
         /// </remarks>
         /// <param name="movieId">Movie id</param>
         /// <param name="request">Request body</param>
+        /// <response code="200">If successfully updated movie</response>
+        /// <response code="400">If model not found</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
+        /// <returns></returns>
         [HttpPut("{movieId}")]
-        [ProducesResponseType(204)]
+        [Authorize(Roles = Role.Admin)]
+        [ProducesResponseType(200)]
         [ProducesResponseType(400)]
+        [ProducesResponseType(401)]
         [ProducesResponseType(500)]
-        public bool PutMovie(int movieId, [FromBody] MovieRequest request)
+        public IActionResult PutMovie(int movieId, [FromBody] MovieRequest request)
         {
-            return _movieService.update(movieId, request);
+            return Ok(_movieService.update(movieId, request));
         }
 
         /// <summary>
         /// Archive movie
         /// </summary>
         /// <param name="movieId">Movie id</param>
-        [Authorize(Roles = Role.Admin)]
+        /// <response code="204">If successfully archived movie</response>
+        /// <response code="400">If model not found</response>
+        /// <response code="401">Unauthorized</response>
+        /// <response code="500">If unexpected error appear</response>
+        /// <returns></returns>
         [HttpDelete("{movieId}")]
+        [Authorize(Roles = Role.Admin)]
         [ProducesResponseType(204)]
         [ProducesResponseType(400)]
         [ProducesResponseType(500)]
-        public bool DeleteMovie(int movieId)
+        public IActionResult DeleteMovie(int movieId)
         {
-            return _movieService.delete(movieId);
+            _movieService.delete(movieId);
+            return NoContent();
         }
     }
 }
