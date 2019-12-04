@@ -6,13 +6,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+
 using Recommend_Movie_System.Filters;
 using Recommend_Movie_System.Models.Entity;
 using Recommend_Movie_System.Models.Response;
 using Recommend_Movie_System.Repository;
 using Recommend_Movie_System.Services;
 using Recommend_Movie_System.Services.Interface;
+
 using Swashbuckle.AspNetCore.Swagger;
+
 using System;
 using System.IO;
 using System.Net;
@@ -47,6 +50,7 @@ namespace Recommend_Movie_System.Configuration
 
         public static void ConfigureServices(this IServiceCollection services)
         {
+            services.AddScoped<IPasswordService, PasswordService>();
             services.AddScoped<IAuthenticationService, AuthenticationService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IMovieService, MovieService>();
