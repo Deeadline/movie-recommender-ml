@@ -5,6 +5,7 @@ using Recommend_Movie_System.Repository;
 using Recommend_Movie_System.Services.Interface;
 using System;
 using System.Linq;
+using Recommend_Movie_System.Models.Response;
 
 namespace Recommend_Movie_System.Services
 {
@@ -40,9 +41,17 @@ namespace Recommend_Movie_System.Services
             return true;
         }
 
-        public User Get(int id)
+        public UserResponse Get(int id)
         {
-            return _context.users.FirstOrDefault(item => item.id == id);
+            var user = _context.users.FirstOrDefault(item => item.id == id);
+            return new UserResponse
+            {
+                id = user.id,
+                email = user.email,
+                firstName = user.firstName,
+                lastName = user.lastName,
+                role = user.role.ToLower()
+            };
         }
     }
 }
