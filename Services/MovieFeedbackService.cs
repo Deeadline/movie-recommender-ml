@@ -23,12 +23,13 @@ namespace Recommend_Movie_System.Services
                 where feedback.movieId.Equals(movieId) && feedback.userId.Equals(userId)
                 select new MovieFeedbackResponse()
                 {
+                    id = feedback.id,
                     rate = feedback.rate,
                     userId = userId,
                 }).FirstOrDefault();
         }
 
-        public bool create(int movieId, MovieFeedbackRequest request)
+        public MovieFeedbackResponse create(int movieId, MovieFeedbackRequest request)
         {
             if (_context.movieFeedbacks.FirstOrDefault(
                     m => m.movieId.Equals(movieId) && m.userId.Equals(request.userId)) != null)
@@ -44,7 +45,13 @@ namespace Recommend_Movie_System.Services
             };
 
             _context.movieFeedbacks.Add(newModel);
-            return _context.SaveChanges() > 0;
+            _context.SaveChanges();
+            return new MovieFeedbackResponse
+            {
+                id = newModel.id,
+                userId = newModel.userId,
+                rate = newModel.rate
+            };
         }
 
         public bool update(int feedbackId, MovieFeedbackRequest request)

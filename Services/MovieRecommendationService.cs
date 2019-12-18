@@ -35,8 +35,8 @@ namespace Recommend_Movie_System.Services
                 ITransformer model = trainModel(pipeline, trainingData);
 
                 IDataView predictions = model.Transform(testData);
-                RegressionMetrics metrics =
-                    _mlContext.Regression.Evaluate(predictions);
+                // RegressionMetrics metrics =
+                //     _mlContext.Regression.Evaluate(predictions);
                 PredictionEngine<MovieRating, MovieRatingPrediction> predictionEngine =
                     _mlContext.Model.CreatePredictionEngine<MovieRating, MovieRatingPrediction>(model);
                 return getPredictions(predictionEngine, userId);

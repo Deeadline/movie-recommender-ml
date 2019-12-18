@@ -33,14 +33,8 @@ namespace Recommend_Movie_System.Services
                 }).ToList();
         }
 
-        public bool create(int movieId, MovieCommentRequest request)
+        public MovieCommentResponse create(int movieId, MovieCommentRequest request)
         {
-            if (_context.movieComments.FirstOrDefault(
-                    m => m.movieId.Equals(movieId) && m.userId.Equals(request.userId)) != null)
-            {
-                throw new Exception("Feedback for this movie is given!");
-            }
-
             var newModel = new MovieComment
             {
                 movieId = movieId,
@@ -49,10 +43,19 @@ namespace Recommend_Movie_System.Services
             };
 
             _context.movieComments.Add(newModel);
-            return _context.SaveChanges() > 0;
+            _context.SaveChanges();
+            return new MovieCommentResponse
+            {
+                id = newModel.id,
+                createdAt = newModel.createdAt,
+                description = newModel.description,
+                movieId = movieId,
+                updatedAt = newModel.updatedAt,
+                userId = newModel.userId
+            };
         }
 
-        public bool update(int commentId, MovieCommentRequest request)
+        public MovieCommentResponse update(int commentId, MovieCommentRequest request)
         {
             var originalModel = _context.movieComments.FirstOrDefault(m => m.id.Equals(commentId));
             var parsedModel = new MovieComment
@@ -69,7 +72,16 @@ namespace Recommend_Movie_System.Services
             parsedModel.id = originalModel.id;
 
             _context.Entry(originalModel).CurrentValues.SetValues(parsedModel);
-            return _context.SaveChanges() > 0;
+            _context.SaveChanges();
+            return new MovieCommentResponse
+            {
+                id = originalModel.id,
+                createdAt = originalModel.createdAt,
+                description = originalModel.description,
+                movieId = originalModel.movieId,
+                updatedAt = originalModel.updatedAt,
+                userId = originalModel.userId
+            };
         }
 
         public bool delete(int commentId)

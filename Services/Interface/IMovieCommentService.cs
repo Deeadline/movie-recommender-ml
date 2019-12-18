@@ -7,8 +7,8 @@ namespace Recommend_Movie_System.Services.Interface
     public interface IMovieCommentService
     {
         IList<MovieCommentResponse> getComments(int movieId);
-        bool create(int movieId, MovieCommentRequest request);
-        bool update(int commentId, MovieCommentRequest request);
+        MovieCommentResponse create(int movieId, MovieCommentRequest request);
+        MovieCommentResponse update(int commentId, MovieCommentRequest request);
         bool delete(int commentId);
     }
 }

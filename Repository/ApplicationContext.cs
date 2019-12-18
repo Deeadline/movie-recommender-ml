@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Recommend_Movie_System.Models.Entity;
 
 namespace Recommend_Movie_System.Repository
@@ -28,6 +30,27 @@ namespace Recommend_Movie_System.Repository
                 .WithMany(c => c.movieGenres)
                 .HasForeignKey(fk => fk.genreId);
             base.OnModelCreating(modelBuilder);
+        }
+
+        public override int SaveChanges()
+        {
+            var entries = ChangeTracker
+                .Entries()
+                .Where(e => e.Entity is MovieComment && (
+                                e.State == EntityState.Added
+                                || e.State == EntityState.Modified));
+
+            foreach (var entityEntry in entries)
+            {
+                ((MovieComment) entityEntry.Entity).updatedAt = DateTime.Now;
+
+                if (entityEntry.State == EntityState.Added)
+                {
+                    ((MovieComment) entityEntry.Entity).createdAt = DateTime.Now;
+                }
+            }
+
+            return base.SaveChanges();
         }
     }
 }

@@ -67,8 +67,7 @@ namespace Recommend_Movie_System.Controllers
         [ProducesResponseType(500)]
         public IActionResult PostMovieComments([FromRoute] int movieId, [FromBody] MovieCommentRequest request)
         {
-            _movieCommentService.create(movieId, request);
-            return CreatedAtRoute("GetMovieComments", new {movieId}, request);
+            return StatusCode(201, _movieCommentService.create(movieId, request));
         }
 
         /// <summary>
