@@ -132,8 +132,7 @@ namespace Recommend_Movie_System.Controllers
         [ProducesResponseType(500)]
         public IActionResult PostMovie([FromBody] MovieRequest request)
         {
-            _movieService.create(request);
-            return CreatedAtRoute("GetMovieById", new {movieId = request.id}, request);
+            return StatusCode(201, _movieService.create(request));
         }
 
         /// <summary>

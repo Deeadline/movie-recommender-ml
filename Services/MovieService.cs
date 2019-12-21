@@ -5,6 +5,8 @@ using Recommend_Movie_System.Services.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 using Recommend_Movie_System.Models.Entity;
 
 namespace Recommend_Movie_System.Services
@@ -95,7 +97,7 @@ namespace Recommend_Movie_System.Services
                 }).FirstOrDefault();
         }
 
-        public bool create(MovieRequest request)
+        public MovieResponse create(MovieRequest request)
         {
             if (_context.movies.FirstOrDefault(m => m.title.Equals(request.title)) != null)
             {
@@ -118,14 +120,22 @@ namespace Recommend_Movie_System.Services
             }
 
             _context.movies.Add(newModel);
-            var result = _context.SaveChanges() > 0;
-            request.id = newModel.id;
-            return result;
+            _context.SaveChanges();
+            return _context.movies.Where(movie => movie.id.Equals(newModel.id))
+                .Select(movie => new MovieResponse
+                {
+                    id = movie.id,
+                    title = movie.title,
+                    releaseYear = movie.releaseYear,
+                    genresIds = _context.movieGenres.Where(y => y.movieId.Equals(movie.id))
+                        .Select(yy => yy.genreId)
+                        .ToList()
+                }).FirstOrDefault();
         }
 
         public bool update(int movieId, MovieRequest request)
         {
-            var originalModel = _context.movies.FirstOrDefault(m => m.id.Equals(movieId));
+            var originalModel = _context.movies.Include(x => x.movieGenres).FirstOrDefault(m => m.id.Equals(movieId));
             var parsedModel = new Movie
             {
                 title = request.title,
@@ -147,9 +157,10 @@ namespace Recommend_Movie_System.Services
                 parsedModel.movieGenres.Add(movieGenre);
             }
 
-            parsedModel.id = originalModel.id;
-
-            _context.Entry(originalModel).CurrentValues.SetValues(parsedModel);
+            originalModel.releaseYear = parsedModel.releaseYear;
+            originalModel.title = parsedModel.title;
+            originalModel.movieGenres = parsedModel.movieGenres;
+            _context.movies.Update(originalModel);
             return _context.SaveChanges() > 0;
         }
 

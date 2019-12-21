@@ -69,9 +69,9 @@ namespace Recommend_Movie_System.Services
                 throw new Exception("Model not found");
             }
 
-            parsedModel.id = originalModel.id;
+            originalModel.description = parsedModel.description;
+            _context.movieComments.Update(originalModel);
 
-            _context.Entry(originalModel).CurrentValues.SetValues(parsedModel);
             _context.SaveChanges();
             return new MovieCommentResponse
             {

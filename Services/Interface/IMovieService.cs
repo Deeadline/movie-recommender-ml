@@ -10,7 +10,7 @@ namespace Recommend_Movie_System.Services.Interface
         IList<MovieResponse> getMovies();
         MovieDetailResponse getMovieWithDetails(int movieId, int userId);
         MovieResponse getMovie(int movieId);
-        bool create(MovieRequest request);
+        MovieResponse create(MovieRequest request);
         bool update(int movieId, MovieRequest request);
         bool delete(int movieId);
     }
