@@ -6,6 +6,7 @@ using Recommend_Movie_System.Models;
 using Recommend_Movie_System.Models.Response;
 using Recommend_Movie_System.Repository;
 using Recommend_Movie_System.Services.Interface;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -33,10 +34,13 @@ namespace Recommend_Movie_System.Services
 
                 EstimatorChain<MatrixFactorizationPredictionTransformer> pipeline = getPipeline();
                 ITransformer model = trainModel(pipeline, trainingData);
-
-                IDataView predictions = model.Transform(testData);
-                // RegressionMetrics metrics =
-                //     _mlContext.Regression.Evaluate(predictions);
+                Console.WriteLine("EVALUATING THE MODEL");
+                IDataView prediction = model.Transform(testData);
+                var metrics =
+                    _mlContext.Regression.Evaluate(prediction, labelColumnName: "Label", scoreColumnName: "Score");
+                Console.WriteLine("Me" + metrics.MeanSquaredError);
+                Console.WriteLine("L1" + metrics.MeanAbsoluteError);
+                Console.WriteLine("L2" + metrics.MeanSquaredError);
                 PredictionEngine<MovieRating, MovieRatingPrediction> predictionEngine =
                     _mlContext.Model.CreatePredictionEngine<MovieRating, MovieRatingPrediction>(model);
                 return getPredictions(predictionEngine, userId);
@@ -51,15 +55,14 @@ namespace Recommend_Movie_System.Services
                     movieId = m.movieId.Value,
                     userId = m.userId,
                     label = (float) m.rate
-                }).Take(10).AsEnumerable();
+                }).Take(10000).ToList();
             var testData = (from m in _context.movieFeedbacks
                 select new MovieRating
                 {
                     movieId = m.movieId.Value,
                     userId = m.userId,
                     label = (float) m.rate
-                }).AsEnumerable();
-
+                }).Take(500).ToList();
             IDataView trainingDataView = _mlContext.Data.LoadFromEnumerable(trainingData);
             IDataView testDataView = _mlContext.Data.LoadFromEnumerable(testData);
             return (trainingDataView, testDataView);
@@ -72,7 +75,7 @@ namespace Recommend_Movie_System.Services
                 MatrixColumnIndexColumnName = "userIdEncoded",
                 MatrixRowIndexColumnName = "movieIdEncoded",
                 LabelColumnName = "Label",
-                NumberOfIterations = 20,
+                NumberOfIterations = 40,
                 ApproximationRank = 100
             };
         }
@@ -92,27 +95,23 @@ namespace Recommend_Movie_System.Services
         private ITransformer trainModel(
             EstimatorChain<MatrixFactorizationPredictionTransformer> pipeline, IDataView trainingModel)
         {
+            Console.WriteLine("TRAINING MODEL");
             return pipeline.Fit(trainingModel);
         }
 
         private IList<MovieResponse> getPredictions(
             PredictionEngine<MovieRating, MovieRatingPrediction> predictionEngine, int userId)
         {
-            IQueryable<MovieRatingPrediction> top5 = (from m in _context.movies
-                let p = predictionEngine.Predict(
-                    new MovieRating
-                    {
-                        userId = userId,
-                        movieId = m.id
-                    })
-                orderby p.score descending
-                select new MovieRatingPrediction
-                {
-                    label = m.id,
-                    score = p.score
-                }).Take(5);
+            IQueryable<MovieRatingPrediction> top5 = _context.movies
+                .Select(m => new {m, p = predictionEngine.Predict(new MovieRating {userId = userId, movieId = m.id})})
+                .OrderByDescending(@t => @t.p.score)
+                .Select(@t => new MovieRatingPrediction {label = @t.m.id, score = @t.p.score})
+                .Take(5);
             var recommendedMovies =
                 top5.Select(movie => _movieService.getMovie((int) movie.label)).ToList();
+            foreach (var t in top5)
+                Console.WriteLine(
+                    $"Score:{t.score}\tMovie: {recommendedMovies.FirstOrDefault(y => y.id == (int) t.label)?.title}");
             return recommendedMovies;
         }
     }
